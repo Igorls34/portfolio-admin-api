@@ -1,6 +1,6 @@
 """Painel admin do portfolio (FastAPI). Entrada para 'uvicorn main:app'.
 
-Servico no homesrv: simple-vibe@portfolio-admin.service (porta 8003)."""
+Servico no homesrv: simple-vibe@portfolio-admin.service (porta 8005)."""
 import logging
 import os
 import time

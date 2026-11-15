@@ -24,8 +24,8 @@ python -m venv .venv
 pip install -r requirements.txt
 pip install -r requirements-upload.txt   # PDF -> WebP (upload de certificados)
 pip install -r requirements-dev.txt      # testes
-cp .env.example .env                  # ajuste ADMIN_PASSWORD e PORT=8003
-uvicorn main:app --reload --host 127.0.0.1 --port 8003
+cp .env.example .env                  # ajuste ADMIN_PASSWORD e PORT=8005
+uvicorn main:app --reload --host 127.0.0.1 --port 8005
 ```
 
 Testar:
@@ -43,7 +43,7 @@ Ver `.env.example`. As essenciais:
 
 | Var | Papel |
 |---|---|
-| `PORT` | 8003 (próxima livre no ecossistema) |
+| `PORT` | 8005 (próxima livre no ecossistema) |
 | `DB_PATH` | caminho do SQLite (padrão `./data.db`) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | usuário único; sem senha, gera uma aleatória no primeiro boot (log) |
 | `SECRET_KEY` | assinatura da sessão/CSRF; sem ela, gera e persiste `secret.key` |
@@ -85,5 +85,5 @@ Importa skills, projetos, certificações (copiando os WebP para `uploads/`) e o
 ## Deploy (homesrv)
 
 Ver `deploy/DEPLOY.md`. Resumo: código em `/home/igordev/apps/portfolio-admin`,
-venv + `simple-vibe@portfolio-admin.service` (porta 8003), frontend copiado
+venv + `simple-vibe@portfolio-admin.service` (porta 8005), frontend copiado
 para `static/`.

@@ -1,7 +1,7 @@
 # Deploy do portfolio-admin (homesrv)
 
 App `portfolio-admin` no `homesrv` (Ubuntu, LAN-first). Backend FastAPI na porta
-**8003**, servindo também o frontend estático (repo `portfolio-admin`) em `/`.
+**8005**, servindo também o frontend estático (repo `portfolio-admin`) em `/`.
 
 ## Pré-requisitos no servidor
 
@@ -34,7 +34,7 @@ python3 -m venv venv
 # .env (nunca versionar)
 cat > .env <<'EOF'
 HOST=0.0.0.0
-PORT=8003
+PORT=8005
 DB_PATH=./data.db
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=SUA_SENHA_FORTE
@@ -71,7 +71,7 @@ sudo systemctl status simple-vibe@portfolio-admin.service
 Confira:
 
 ```bash
-curl -s http://127.0.0.1:8003/health
+curl -s http://127.0.0.1:8005/health
 ```
 
 ## 5. Migração inicial (antes do primeiro publish)
@@ -89,7 +89,7 @@ cd /home/igordev/apps/portfolio-admin
 
 ## 6. Acesso
 
-- LAN: `http://192.168.1.2:8003/`
+- LAN: `http://192.168.1.2:8005/`
 - Remoto: via Tailscale (MagicDNS). Não há túnel ngrok (limite de 1 domínio
   free já usado) — acesso é privado de propósito.
 
