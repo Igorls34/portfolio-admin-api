@@ -74,7 +74,20 @@ Confira:
 curl -s http://127.0.0.1:8003/health
 ```
 
-## 5. Acesso
+## 5. Migração inicial (antes do primeiro publish)
+
+Importe o conteúdo atual do portfólio para o banco, para o primeiro publish
+**não apagar** o site:
+
+```bash
+cd /home/igordev/apps/portfolio-admin
+./venv/bin/python seed.py /caminho/para/portfolio.json /caminho/para/certificados_webp
+```
+
+(No servidor, clone o repo do portfólio ou copie `data/portfolio.json` e
+`certificados_webp/` para um caminho temporário e aponte o script para eles.)
+
+## 6. Acesso
 
 - LAN: `http://192.168.1.2:8003/`
 - Remoto: via Tailscale (MagicDNS). Não há túnel ngrok (limite de 1 domínio
@@ -82,7 +95,7 @@ curl -s http://127.0.0.1:8003/health
 
 Se acessar via Tailscale com HTTPS, defina `COOKIE_SECURE=true` no `.env`.
 
-## 6. Atualizar (deploy)
+## 7. Atualizar (deploy)
 
 ```bash
 cd /home/igordev/apps/portfolio-admin
@@ -93,7 +106,7 @@ git clone https://github.com/Igorls34/portfolio-admin /tmp/pf && rsync -a --dele
 sudo systemctl restart simple-vibe@portfolio-admin.service
 ```
 
-## 7. Backup
+## 8. Backup
 
 ```bash
 sqlite3 /home/igordev/apps/portfolio-admin/data.db ".backup '/home/igordev/backups/portfolio-admin-$(date +%F).db'"

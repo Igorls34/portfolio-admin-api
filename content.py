@@ -328,7 +328,7 @@ def build_portfolio_json() -> dict:
             ).fetchone()
             cert = {
                 "id": r["id"],
-                "image": f"certificados_webp/{img['filename'] if img else r['id']}.webp",
+                "image": f"certificados_webp/{img['filename'] if img else r['id'] + '.webp'}",
                 "name": r["name"],
                 "issuer": r["issuer"],
                 "year": r["year"],

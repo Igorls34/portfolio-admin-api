@@ -70,6 +70,18 @@ exige o header `X-CSRF-Token` igual ao cookie CSRF. Login com rate limit por IP.
 
 `GET /api/publish/status` mostra o histórico.
 
+## Migração inicial (obrigatória)
+
+Antes da primeira publicação, importe o conteúdo atual do portfólio para o
+banco — senão o banco começa vazio e a primeira publicação apagaria o site:
+
+```bash
+python seed.py /caminho/para/portfolio.json /caminho/para/certificados_webp
+```
+
+Importa skills, projetos, certificações (copiando os WebP para `uploads/`) e o
+`site`. Idempotente: pode rodar de novo para reiniciar do `portfolio.json`.
+
 ## Deploy (homesrv)
 
 Ver `deploy/DEPLOY.md`. Resumo: código em `/home/igordev/apps/portfolio-admin`,
