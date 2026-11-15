@@ -16,7 +16,10 @@ def pdf_to_webp(pdf_bytes: bytes, base_name: str) -> list:
 
     Retorna a lista de nomes de arquivo gerados (ex.: ['0h2ll5ge_pagina_001.webp']).
     """
-    import fitz  # PyMuPDF
+    try:
+        import pymupdf as fitz  # PyMuPDF 2.x
+    except ImportError:
+        import fitz  # PyMuPDF 1.x
     from PIL import Image
 
     os.makedirs(UPLOADS_DIR, exist_ok=True)
