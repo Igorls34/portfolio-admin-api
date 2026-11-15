@@ -1,0 +1,5 @@
+# Dependencias do upload de certificados (PDF -> WebP).
+# Instale no servidor junto com requirements.txt. Nao sao necessarias para
+# CRUD/site/publish.
+PyMuPDF==1.24.14
+Pillow==10.4.0
