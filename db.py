@@ -4,6 +4,12 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Carrega .env aqui (e nao so no main) para que qualquer entrypoint — uvicorn
+# ou o seed.py — enxergue DB_PATH/ADMIN_PASSWORD etc. sem duplicar a leitura.
+load_dotenv()
+
 DB_PATH = os.getenv("DB_PATH", "./data.db")
 DATA_DIR = os.path.dirname(os.path.abspath(DB_PATH))
 UPLOADS_DIR = os.getenv(
