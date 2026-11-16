@@ -161,6 +161,14 @@ def metrics():
     }
 
 
+# Imagens enviadas (certificados e projetos) servidas para preview no painel.
+# UPLOADS_DIR = <data>/uploads/certs e PROJECTS_UPLOADS_DIR = <data>/uploads/projects,
+# entao o pai (<data>/uploads) expoe os dois sob /uploads/certs e /uploads/projects.
+_uploads_root = os.path.dirname(db.UPLOADS_DIR)
+os.makedirs(_uploads_root, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_uploads_root), name="uploads")
+
+
 # Frontend estatico (repo portfolio-admin) servido na raiz, depois das rotas /api.
 _static = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if os.path.exists(os.path.join(_static, "index.html")):

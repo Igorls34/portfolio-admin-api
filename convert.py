@@ -5,7 +5,7 @@ Os imports de fitz/Pillow sao tardios: o app so precisa deles na hora do
 upload, entao CRUD/site/publish funcionam sem essas dependencias instaladas."""
 import os
 
-from db import UPLOADS_DIR
+from db import PROJECTS_UPLOADS_DIR, UPLOADS_DIR
 
 DPI = 150
 QUALITY = 85
@@ -42,3 +42,30 @@ def pdf_to_webp(pdf_bytes: bytes, base_name: str) -> list:
 
 def cert_image_path(filename: str) -> str:
     return os.path.join(UPLOADS_DIR, filename)
+
+
+def image_to_webp(data: bytes, base_name: str) -> str:
+    """Converte uma imagem (png/jpg/webp) para WebP em PROJECTS_UPLOADS_DIR.
+
+    Retorna o nome do arquivo gerado (ex.: 'meu_projeto.webp')."""
+    import io
+
+    from PIL import Image
+
+    os.makedirs(PROJECTS_UPLOADS_DIR, exist_ok=True)
+    img = Image.open(io.BytesIO(data))
+    if img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGBA")
+        fundo = Image.new("RGB", img.size, (255, 255, 255))
+        fundo.paste(img, mask=img.split()[-1])
+        img = fundo
+    else:
+        img = img.convert("RGB")
+    filename = f"{base_name}.webp"
+    destino = os.path.join(PROJECTS_UPLOADS_DIR, filename)
+    img.save(destino, format="WEBP", quality=QUALITY)
+    return filename
+
+
+def project_image_path(filename: str) -> str:
+    return os.path.join(PROJECTS_UPLOADS_DIR, filename)

@@ -16,6 +16,10 @@ UPLOADS_DIR = os.getenv(
     "UPLOADS_DIR",
     os.path.join(DATA_DIR, "uploads", "certs"),
 )
+PROJECTS_UPLOADS_DIR = os.getenv(
+    "PROJECTS_UPLOADS_DIR",
+    os.path.join(DATA_DIR, "uploads", "projects"),
+)
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
 
 
@@ -46,10 +50,19 @@ def connect():
 def init_db() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(UPLOADS_DIR, exist_ok=True)
+    os.makedirs(PROJECTS_UPLOADS_DIR, exist_ok=True)
     with connect() as conn:
         schema = Path(SCHEMA_PATH).read_text(encoding="utf-8")
         conn.executescript(schema)
+        _migrate(conn)
     _bootstrap_admin()
+
+
+def _migrate(conn) -> None:
+    """Migracoes idempotentes para bancos criados antes de colunas novas."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+    if "image" not in cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN image TEXT NOT NULL DEFAULT ''")
 
 
 def _bootstrap_admin() -> None:

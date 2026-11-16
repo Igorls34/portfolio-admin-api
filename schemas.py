@@ -44,6 +44,7 @@ class ProjectOut(BaseModel):
     description: str
     published: bool
     position: int
+    image: str = ""
     techs: List[str]
     links: List[ProjectLinkOut]
 

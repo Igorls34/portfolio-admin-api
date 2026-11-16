@@ -121,3 +121,38 @@ def test_publish_sem_configuracao_devolve_503():
         t = _csrf(c)
         r = c.post("/api/publish", headers={"X-CSRF-Token": t})
         assert r.status_code == 503
+
+
+def test_projeto_imagem_upload_e_preview():
+    import io
+    import os
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), "red").save(buf, "PNG")
+
+    with TestClient(main.app) as c:
+        _login(c)
+        t = _csrf(c)
+        r = c.post("/api/projects",
+                   json={"id": "proj_img", "icon": "fa-x", "title": "P",
+                         "description": "d", "techs": [], "links": []},
+                   headers={"X-CSRF-Token": t})
+        assert r.status_code == 200
+
+        r = c.post("/api/projects/proj_img/image",
+                   files={"file": ("x.png", buf.getvalue(), "image/png")},
+                   headers={"X-CSRF-Token": t})
+        assert r.status_code == 200, r.text
+        assert r.json()["image"] == "proj_img.webp"
+
+        # preview servido pelo mount /uploads
+        r = c.get("/uploads/projects/proj_img.webp")
+        assert r.status_code == 200
+
+        # aparece no portfolio.json com o caminho do site
+        from content import build_portfolio_json
+        d = build_portfolio_json()
+        p = next(x for x in d["projects"] if x["id"] == "proj_img")
+        assert p["image"] == "assets/img/projects/proj_img.webp"

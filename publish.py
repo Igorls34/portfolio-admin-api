@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 import db
 from content import build_portfolio_json_text
-from convert import cert_image_path
+from convert import cert_image_path, project_image_path
 from security import require_auth, require_csrf
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
@@ -45,7 +45,7 @@ async def _request(client, method, url, headers, **kw):
     return resp.json()
 
 
-async def _commit(token, owner, repo, branch, json_text, cert_files, certs_dir) -> str:
+async def _commit(token, owner, repo, branch, json_text, filesets) -> str:
     base = f"{API}/repos/{owner}/{repo}"
     async with httpx.AsyncClient(timeout=60) as client:
         h = _headers(token)
@@ -54,19 +54,6 @@ async def _commit(token, owner, repo, branch, json_text, cert_files, certs_dir) 
         base_sha = ref["object"]["sha"]
         commit = await _request(client, "GET", f"{base}/git/commits/{base_sha}", h)
         base_tree = commit["tree"]["sha"]
-
-        # Arquivos atuais em certificados_webp (para reconciliar exclusoes).
-        current = {}
-        try:
-            listing = await _request(client, "GET", f"{base}/contents/{certs_dir}", h)
-            if isinstance(listing, list):
-                for item in listing:
-                    if item.get("type") == "file":
-                        current[item["path"]] = item["sha"]
-        except HTTPException as err:
-            if err.status_code != 502 or "404" not in str(err.detail):
-                raise
-            current = {}
 
         tree_entries = []
 
@@ -77,17 +64,33 @@ async def _commit(token, owner, repo, branch, json_text, cert_files, certs_dir) 
         tree_entries.append({"path": os.getenv("PORTFOLIO_JSON_PATH", "data/portfolio.json"),
                              "mode": "100644", "type": "blob", "sha": json_blob["sha"]})
 
-        # WebP desejados
-        desired = set(cert_files.keys())
-        for path, content in cert_files.items():
-            blob = await _request(client, "POST", f"{base}/git/blobs", h,
-                                  json={"content": base64.b64encode(content).decode(), "encoding": "base64"})
-            tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+        # Cada conjunto (ex.: certificados_webp, assets/img/projects): adiciona
+        # os arquivos desejados e remove os que sairam do banco.
+        for fs in filesets:
+            diretorio = fs["dir"]
+            arquivos = fs["files"]
 
-        # Exclusoes
-        for path in current:
-            if path not in desired:
-                tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
+            current = {}
+            try:
+                listing = await _request(client, "GET", f"{base}/contents/{diretorio}", h)
+                if isinstance(listing, list):
+                    for item in listing:
+                        if item.get("type") == "file":
+                            current[item["path"]] = item["sha"]
+            except HTTPException as err:
+                if err.status_code != 502 or "404" not in str(err.detail):
+                    raise
+                current = {}
+
+            desired = set(arquivos.keys())
+            for path, content in arquivos.items():
+                blob = await _request(client, "POST", f"{base}/git/blobs", h,
+                                      json={"content": base64.b64encode(content).decode(),
+                                            "encoding": "base64"})
+                tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+            for path in current:
+                if path not in desired:
+                    tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
 
         tree = await _request(client, "POST", f"{base}/git/trees", h,
                               json={"base_tree": base_tree, "tree": tree_entries})
@@ -111,12 +114,28 @@ def _collect_cert_files(certs_dir: str) -> dict:
     return files
 
 
+def _collect_project_files(projects_dir: str) -> dict:
+    files = {}
+    with db.connect() as conn:
+        rows = conn.execute("SELECT image FROM projects WHERE image != ''").fetchall()
+    for r in rows:
+        path = project_image_path(r["image"])
+        if os.path.exists(path):
+            with open(path, "rb") as fh:
+                files[f"{projects_dir}/{r['image']}"] = fh.read()
+    return files
+
+
 async def _run_publish() -> dict:
     token, owner, repo = _repo_ref()
     branch = os.getenv("GITHUB_BRANCH", "main").strip() or "main"
     certs_dir = os.getenv("PORTFOLIO_CERTS_DIR", "certificados_webp").strip().strip("/")
-    sha = await _commit(token, owner, repo, branch, build_portfolio_json_text(),
-                        _collect_cert_files(certs_dir), certs_dir)
+    projects_dir = os.getenv("PORTFOLIO_PROJECTS_DIR", "assets/img/projects").strip().strip("/")
+    filesets = [
+        {"dir": certs_dir, "files": _collect_cert_files(certs_dir)},
+        {"dir": projects_dir, "files": _collect_project_files(projects_dir)},
+    ]
+    sha = await _commit(token, owner, repo, branch, build_portfolio_json_text(), filesets)
 
     deploy_url = ""
     hook = os.getenv("NETLIFY_BUILD_HOOK", "").strip()

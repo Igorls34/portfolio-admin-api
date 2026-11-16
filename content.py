@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 import db
 import schemas
-from convert import cert_image_path, pdf_to_webp
+from convert import cert_image_path, image_to_webp, pdf_to_webp, project_image_path
 from security import require_auth, require_csrf
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
@@ -91,7 +91,7 @@ def _links(conn, project_id: str) -> List[dict]:
 
 def _project_out(conn, project_id: str) -> dict:
     row = conn.execute(
-        "SELECT id, icon, title, description, published, position FROM projects WHERE id = ?",
+        "SELECT id, icon, title, description, published, position, image FROM projects WHERE id = ?",
         (project_id,),
     ).fetchone()
     if not row:
@@ -162,9 +162,15 @@ def _replace_children(conn, item: schemas.ProjectIn):
 @router.delete("/projects/{project_id}", dependencies=[Depends(require_csrf)])
 def delete_project(project_id: str):
     with db.connect() as conn:
-        cur = conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-        if cur.rowcount == 0:
+        row = conn.execute("SELECT image FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not row:
             raise HTTPException(404, "projeto nao encontrado")
+        filename = row["image"]
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    if filename:
+        path = project_image_path(filename)
+        if os.path.exists(path):
+            os.remove(path)
     return {"ok": True}
 
 
@@ -173,6 +179,46 @@ def reorder_projects(body: schemas.ReorderIn):
     with db.connect() as conn:
         for position, pid in enumerate(body.ids):
             conn.execute("UPDATE projects SET position = ? WHERE id = ?", (position, pid))
+    return {"ok": True}
+
+
+@router.post("/projects/{project_id}/image", dependencies=[Depends(require_csrf)])
+async def upload_project_image(project_id: str, file: UploadFile = File(...)):
+    if not (file.filename or "").lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+        raise HTTPException(400, "envie uma imagem (png, jpg, jpeg, webp ou gif)")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "imagem grande demais (max 10 MB)")
+    with db.connect() as conn:
+        row = conn.execute("SELECT image FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "projeto nao encontrado")
+        old = row["image"]
+    try:
+        filename = image_to_webp(data, project_id)
+    except Exception as err:  # noqa: BLE001
+        raise HTTPException(400, f"falha ao processar imagem: {err}") from err
+    with db.connect() as conn:
+        conn.execute("UPDATE projects SET image = ? WHERE id = ?", (filename, project_id))
+    if old and old != filename:
+        path = project_image_path(old)
+        if os.path.exists(path):
+            os.remove(path)
+    return {"image": filename}
+
+
+@router.delete("/projects/{project_id}/image", dependencies=[Depends(require_csrf)])
+def delete_project_image(project_id: str):
+    with db.connect() as conn:
+        row = conn.execute("SELECT image FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "projeto nao encontrado")
+        filename = row["image"]
+        conn.execute("UPDATE projects SET image = '' WHERE id = ?", (project_id,))
+    if filename:
+        path = project_image_path(filename)
+        if os.path.exists(path):
+            os.remove(path)
     return {"ok": True}
 
 
@@ -343,9 +389,13 @@ def build_portfolio_json() -> dict:
 
         projects = []
         for r in conn.execute(
-            "SELECT id, icon, title, description FROM projects WHERE published = 1 ORDER BY position, id"
+            "SELECT id, icon, title, description, image FROM projects WHERE published = 1 ORDER BY position, id"
         ).fetchall():
             project = _row(r)
+            if project["image"]:
+                project["image"] = f"assets/img/projects/{project['image']}"
+            else:
+                project.pop("image", None)
             project["techs"] = _techs(conn, project["id"])
             project["links"] = [
                 {"label": l["label"], "href": l["href"], "track": l["track"]}
